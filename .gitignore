@@ -105,3 +105,6 @@ dist
 
 # Dockerfile
 Dockerfile
+
+#upload files
+uploads/
