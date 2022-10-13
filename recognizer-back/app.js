@@ -63,8 +63,8 @@ app.use("/api/analyze", (req, res, next) => {
 });
 
 async function recognizeForm(file) {
-  const endpoint = "https://fou-form-recognizer.cognitiveservices.azure.com/";
-  const apiKey = "7563647b2a294fa689556f6e3a5d37ae";
+  const endpoint = "https://southafricanorth.api.cognitive.microsoft.com/";
+  const apiKey = "1c93c8a95cf64102b60f8944549d4a50";
   // const modelId = "24055ea7-35e6-4bb4-b24e-af767aada9fd";
   console.log("Entering Forms Recognizer");
 
