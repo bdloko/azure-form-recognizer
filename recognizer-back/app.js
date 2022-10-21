@@ -65,9 +65,9 @@ app.use("/api/analyze", (req, res, next) => {
 });
 
 async function blobStorage(file) {
-  const storageAccount ="foustorageaccount";
-  const containerName = "fou-storage-container";
-  const storageAPIKey = "ImbbbMVPrDlufuyVbKYZGZNrNzxZ1Z8xgQOnAehxtS4cdyWdjv2NMdKdVhVONTWyaqz01QzR/qqc+AStPrkdww=="
+  const storageAccount ="";
+  const containerName = "";
+  const storageAPIKey = ""
 
   const sharedKeyCredential = new StorageSharedKeyCredential(storageAccount, storageAPIKey);
   const blobServiceClient = new BlobServiceClient(
@@ -82,8 +82,8 @@ async function blobStorage(file) {
 }
 
 async function recognizeForm(file) {
-  const endpoint = "https://southafricanorth.api.cognitive.microsoft.com/";
-  const apiKey = "a917cea621114891bb63cad51c1908d2";
+  const endpoint = "";
+  const apiKey = "";
   // const modelId = "24055ea7-35e6-4bb4-b24e-af767aada9fd";
   console.log("Entering Forms Recognizer");
 
