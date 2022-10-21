@@ -2,7 +2,7 @@ const http = require("http");
 const express = require("express");
 const bodyParser = require("body-parser");
 const AzureStorageBlob = require("@azure/storage-blob");
-const { BlobServiceClient } = require("@azure/storage-blob");
+const { BlobServiceClient, StorageSharedKeyCredential } = require("@azure/storage-blob");
 var cors = require("cors");
 const fileUpload = require("express-fileupload");
 const fs = require("fs");
@@ -31,19 +31,19 @@ app.use(
   })
 );
 
-// app.use((req, res, next) => {
-//   console.log("Enter CORS");
-//   res.setHeader("Access-Control-Allow-Origin", "*");
-//   res.setHeader(
-//     "Access-Control-Allow-Headers",
-//     "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-//   );
-//   res.setHeader(
-//     "Access-Control-Allow-Methods",
-//     "GET, POST, PATCH, DELETE, OPTIONS, PUT"
-//   );
-//   next();
-// });
+app.use((req, res, next) => {
+  console.log("Enter CORS");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PATCH, DELETE, OPTIONS, PUT"
+  );
+  next();
+});
 
 app.options("*", cors()); // include before other routes
 
@@ -52,28 +52,50 @@ app.use("/api/analyze", (req, res, next) => {
     return res.status(400).send("No files were uploaded.");
   }
   let file = req.files.file;
-  uploadPath = __dirname + "\\uploads\\" + new Date().getTime() + ".jpg";
+  uploadPath = new Date().getTime() + ".jpg";
   file.mv(uploadPath, async () => {
     recognizeForm(uploadPath).then((result) => {
       return res.status(200).json({
         output: result,
       });
+      console.log(result, "file results!");
     });
+    blobStorage(uploadPath);
   });
 });
 
+async function blobStorage(file) {
+  const storageAccount ="foustorageaccount";
+  const containerName = "fou-storage-container";
+  const storageAPIKey = "ImbbbMVPrDlufuyVbKYZGZNrNzxZ1Z8xgQOnAehxtS4cdyWdjv2NMdKdVhVONTWyaqz01QzR/qqc+AStPrkdww=="
+
+  const sharedKeyCredential = new StorageSharedKeyCredential(storageAccount, storageAPIKey);
+  const blobServiceClient = new BlobServiceClient(
+    `https://${storageAccount}.blob.core.windows.net`,
+    sharedKeyCredential
+  );
+
+  const containerClient = blobServiceClient.getContainerClient(containerName);
+  const blockBlobClient = containerClient.getBlockBlobClient(file);
+  const uploadBlobResponse = await blockBlobClient.uploadData(fs.readFileSync(file));
+  console.log(`Upload block blob ${file} successfully`, uploadBlobResponse.requestId);
+}
+
 async function recognizeForm(file) {
   const endpoint = "https://southafricanorth.api.cognitive.microsoft.com/";
-  const apiKey = "1c93c8a95cf64102b60f8944549d4a50";
+  const apiKey = "a917cea621114891bb63cad51c1908d2";
   // const modelId = "24055ea7-35e6-4bb4-b24e-af767aada9fd";
   console.log("Entering Forms Recognizer");
 
   let fileStream = fs.createReadStream(file);
-
+  
   const client = new DocumentAnalysisClient(
     endpoint,
     new AzureKeyCredential(apiKey)
   );
+
+  
+
   const poller = await client.beginAnalyzeDocument("prebuilt-layout", fileStream, {
     contentType: "image/jpeg",      
     onProgress: (state) => {
