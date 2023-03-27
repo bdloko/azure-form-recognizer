@@ -22,8 +22,6 @@ def report() -> None:  # pragma: no cover
         "TERM_PROGRAM",
         "COLUMNS",
         "LINES",
-        "JUPYTER_COLUMNS",
-        "JUPYTER_LINES",
         "JPY_PARENT_PID",
         "VSCODE_VERBOSE_LOGGING",
     )

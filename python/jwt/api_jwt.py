@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 import json
-import warnings
 from calendar import timegm
 from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta, timezone
@@ -17,7 +14,6 @@ from .exceptions import (
     InvalidIssuerError,
     MissingRequiredClaimError,
 )
-from .warnings import RemovedInPyjwt3Warning
 
 
 class PyJWT:
@@ -43,7 +39,7 @@ class PyJWT:
         payload: Dict[str, Any],
         key: str,
         algorithm: Optional[str] = "HS256",
-        headers: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict] = None,
         json_encoder: Optional[Type[json.JSONEncoder]] = None,
     ) -> str:
         # Check that we get a mapping
@@ -70,40 +66,14 @@ class PyJWT:
         self,
         jwt: str,
         key: str = "",
-        algorithms: Optional[List[str]] = None,
-        options: Optional[Dict[str, Any]] = None,
-        # deprecated arg, remove in pyjwt3
-        verify: Optional[bool] = None,
-        # could be used as passthrough to api_jws, consider removal in pyjwt3
-        detached_payload: Optional[bytes] = None,
-        # passthrough arguments to _validate_claims
-        # consider putting in options
-        audience: Optional[Union[str, Iterable[str]]] = None,
-        issuer: Optional[str] = None,
-        leeway: Union[int, float, timedelta] = 0,
-        # kwargs
+        algorithms: List[str] = None,
+        options: Dict = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        if kwargs:
-            warnings.warn(
-                "passing additional kwargs to decode_complete() is deprecated "
-                "and will be removed in pyjwt version 3. "
-                f"Unsupported kwargs: {tuple(kwargs.keys())}",
-                RemovedInPyjwt3Warning,
-            )
-        options = dict(options or {})  # shallow-copy or initialize an empty dict
-        options.setdefault("verify_signature", True)
-
-        # If the user has set the legacy `verify` argument, and it doesn't match
-        # what the relevant `options` entry for the argument is, inform the user
-        # that they're likely making a mistake.
-        if verify is not None and verify != options["verify_signature"]:
-            warnings.warn(
-                "The `verify` argument to `decode` does nothing in PyJWT 2.0 and newer. "
-                "The equivalent is setting `verify_signature` to False in the `options` dictionary. "
-                "This invocation has a mismatch between the kwarg and the option entry.",
-                category=DeprecationWarning,
-            )
+        if options is None:
+            options = {"verify_signature": True}
+        else:
+            options.setdefault("verify_signature", True)
 
         if not options["verify_signature"]:
             options.setdefault("verify_exp", False)
@@ -122,20 +92,18 @@ class PyJWT:
             key=key,
             algorithms=algorithms,
             options=options,
-            detached_payload=detached_payload,
+            **kwargs,
         )
 
         try:
             payload = json.loads(decoded["payload"])
         except ValueError as e:
-            raise DecodeError(f"Invalid payload string: {e}")
+            raise DecodeError("Invalid payload string: %s" % e)
         if not isinstance(payload, dict):
             raise DecodeError("Invalid payload string: must be a json object")
 
         merged_options = {**self.options, **options}
-        self._validate_claims(
-            payload, merged_options, audience=audience, issuer=issuer, leeway=leeway
-        )
+        self._validate_claims(payload, merged_options, **kwargs)
 
         decoded["payload"] = payload
         return decoded
@@ -144,46 +112,21 @@ class PyJWT:
         self,
         jwt: str,
         key: str = "",
-        algorithms: Optional[List[str]] = None,
-        options: Optional[Dict[str, Any]] = None,
-        # deprecated arg, remove in pyjwt3
-        verify: Optional[bool] = None,
-        # could be used as passthrough to api_jws, consider removal in pyjwt3
-        detached_payload: Optional[bytes] = None,
-        # passthrough arguments to _validate_claims
-        # consider putting in options
-        audience: Optional[Union[str, Iterable[str]]] = None,
-        issuer: Optional[str] = None,
-        leeway: Union[int, float, timedelta] = 0,
-        # kwargs
+        algorithms: List[str] = None,
+        options: Dict = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        if kwargs:
-            warnings.warn(
-                "passing additional kwargs to decode() is deprecated "
-                "and will be removed in pyjwt version 3. "
-                f"Unsupported kwargs: {tuple(kwargs.keys())}",
-                RemovedInPyjwt3Warning,
-            )
-        decoded = self.decode_complete(
-            jwt,
-            key,
-            algorithms,
-            options,
-            verify=verify,
-            detached_payload=detached_payload,
-            audience=audience,
-            issuer=issuer,
-            leeway=leeway,
-        )
+        decoded = self.decode_complete(jwt, key, algorithms, options, **kwargs)
         return decoded["payload"]
 
-    def _validate_claims(self, payload, options, audience=None, issuer=None, leeway=0):
+    def _validate_claims(
+        self, payload, options, audience=None, issuer=None, leeway=0, **kwargs
+    ):
         if isinstance(leeway, timedelta):
             leeway = leeway.total_seconds()
 
-        if audience is not None and not isinstance(audience, (str, Iterable)):
-            raise TypeError("audience must be a string, iterable or None")
+        if not isinstance(audience, (bytes, str, type(None), Iterable)):
+            raise TypeError("audience must be a string, iterable, or None")
 
         self._validate_required_claims(payload, options)
 
@@ -210,13 +153,10 @@ class PyJWT:
                 raise MissingRequiredClaimError(claim)
 
     def _validate_iat(self, payload, now, leeway):
-        iat = payload["iat"]
         try:
-            int(iat)
+            int(payload["iat"])
         except ValueError:
             raise InvalidIssuedAtError("Issued At claim (iat) must be an integer.")
-        if iat > (now + leeway):
-            raise ImmatureSignatureError("The token is not yet valid (iat)")
 
     def _validate_nbf(self, payload, now, leeway):
         try:
@@ -233,7 +173,7 @@ class PyJWT:
         except ValueError:
             raise DecodeError("Expiration Time claim (exp) must be an" " integer.")
 
-        if exp <= (now - leeway):
+        if exp < (now - leeway):
             raise ExpiredSignatureError("Signature has expired")
 
     def _validate_aud(self, payload, audience):

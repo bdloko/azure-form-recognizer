@@ -1,5 +1,5 @@
 from operator import itemgetter
-from typing import TYPE_CHECKING, Callable, NamedTuple, Optional, Sequence
+from typing import TYPE_CHECKING, Callable, Iterable, NamedTuple, Optional
 
 from . import errors
 from .protocol import is_renderable, rich_cast
@@ -125,7 +125,7 @@ class Measurement(NamedTuple):
 def measure_renderables(
     console: "Console",
     options: "ConsoleOptions",
-    renderables: Sequence["RenderableType"],
+    renderables: Iterable["RenderableType"],
 ) -> "Measurement":
     """Get a measurement that would fit a number of renderables.
 

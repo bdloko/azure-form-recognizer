@@ -337,7 +337,7 @@ class Traceback:
         from pip._vendor.rich import _IMPORT_CWD
 
         def safe_str(_object: Any) -> str:
-            """Don't allow exceptions from __str__ to propagate."""
+            """Don't allow exceptions from __str__ to propegate."""
             try:
                 return str(_object)
             except Exception:
@@ -367,8 +367,6 @@ class Traceback:
                 if filename and not filename.startswith("<"):
                     if not os.path.isabs(filename):
                         filename = os.path.join(_IMPORT_CWD, filename)
-                if frame_summary.f_locals.get("_rich_traceback_omit", False):
-                    continue
                 frame = Frame(
                     filename=filename or "?",
                     lineno=line_no,
@@ -385,21 +383,23 @@ class Traceback:
                     else None,
                 )
                 append(frame)
-                if frame_summary.f_locals.get("_rich_traceback_guard", False):
+                if "_rich_traceback_guard" in frame_summary.f_locals:
                     del stack.frames[:]
 
             cause = getattr(exc_value, "__cause__", None)
-            if cause:
+            if cause and cause.__traceback__:
                 exc_type = cause.__class__
                 exc_value = cause
-                # __traceback__ can be None, e.g. for exceptions raised by the
-                # 'multiprocessing' module
                 traceback = cause.__traceback__
                 is_cause = True
                 continue
 
             cause = exc_value.__context__
-            if cause and not getattr(exc_value, "__suppress_context__", False):
+            if (
+                cause
+                and cause.__traceback__
+                and not getattr(exc_value, "__suppress_context__", False)
+            ):
                 exc_type = cause.__class__
                 exc_value = cause
                 traceback = cause.__traceback__
@@ -584,7 +584,7 @@ class Traceback:
                 )
                 excluded = False
 
-            first = frame_index == 0
+            first = frame_index == 1
             frame_filename = frame.filename
             suppressed = any(frame_filename.startswith(path) for path in self.suppress)
 
